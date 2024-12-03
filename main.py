@@ -25,6 +25,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+face_classifier = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+)
+
+def detect_bounding_box(vid):
+    gray_image = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
+    faces = face_classifier.detectMultiScale(gray_image, 1.1, 5, minSize=(40, 40))
+    for (x, y, w, h) in faces:
+        cv2.rectangle(vid, (x, y), (x + w, y + h), (0, 255, 0), 4)
+    return faces
+
 activeSources=set(())
 
 async def get_camera_stream(source):
@@ -50,6 +61,9 @@ async def get_camera_stream(source):
             await sio.emit('video_frame', {'success': False, 'error': 2, 'data': "Corrupt frame", 'source': source})
             continue
 
+        faces = detect_bounding_box(
+            frame
+        )
         # Encode the frame in JPEG format
         success, buffer = cv2.imencode('.jpg', frame)
         if not success:
@@ -93,4 +107,4 @@ app.mount("/", socket_app)
 
 
 if __name__ == '__main__':
-    uvicorn.run("main:app", port=7000, lifespan="on", reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=7000, lifespan="on", reload=True)
